@@ -1,0 +1,2 @@
+- La documentacion del proyecto se encuentra en docs/
+- La filosofia a seguir para el proyecto sera KISS

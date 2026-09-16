@@ -1,0 +1,293 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Portal de equipo con tablero de notas: DynamoDB (Users, Notes), Lambda de metricas,
+  EC2 con la API en Docker y S3 + CloudFront para el frontend React.
+
+Parameters:
+  ApiImage:
+    Type: String
+    Description: Imagen Docker publica de la API (por ejemplo ghcr.io/usuario/portal-api:1.0.0)
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: Secreto HS256 para firmar los JWT (minimo 32 caracteres)
+  SeedDemo:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Sembrar las cuentas demo si la tabla Users esta vacia
+  InstanceType:
+    Type: String
+    Default: t3.micro
+  KeyName:
+    Type: String
+    Default: ""
+    Description: (Opcional) key pair para entrar por SSH a la instancia
+  SshCidr:
+    Type: String
+    Default: ""
+    Description: (Opcional) CIDR autorizado para SSH; vacio = sin acceso SSH
+  CloudFrontPrefixListId:
+    Type: String
+    Default: pl-3b927c52
+    Description: >
+      Prefix list com.amazonaws.global.cloudfront.origin-facing de la region.
+      El valor por defecto es el de us-east-1:
+      aws ec2 describe-managed-prefix-lists --filters Name=prefix-list-name,Values=com.amazonaws.global.cloudfront.origin-facing
+  LatestAmiId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+
+Conditions:
+  HasKeyName: !Not [!Equals [!Ref KeyName, ""]]
+  HasSshCidr: !Not [!Equals [!Ref SshCidr, ""]]
+
+Resources:
+
+  # ---------- Datos ----------
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  NotesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  # ---------- Metricas ----------
+  MetricsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../lambda/metrics
+      Handler: app.handler
+      Runtime: python3.12
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          NOTES_TABLE: !Ref NotesTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref NotesTable
+
+  # ---------- API en EC2 ----------
+  ApiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: portal-api
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource:
+                  - !GetAtt UsersTable.Arn
+                  - !Sub "${UsersTable.Arn}/index/*"
+                  - !GetAtt NotesTable.Arn
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt MetricsFunction.Arn
+
+  ApiInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref ApiRole
+
+  ApiSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: API accesible solo desde CloudFront
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourcePrefixListId: !Ref CloudFrontPrefixListId
+          Description: HTTP desde los edge de CloudFront
+
+  ApiSshIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: HasSshCidr
+    Properties:
+      GroupId: !GetAtt ApiSecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      CidrIp: !Ref SshCidr
+
+  ApiInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref ApiInstanceProfile
+      KeyName: !If [HasKeyName, !Ref KeyName, !Ref "AWS::NoValue"]
+      SecurityGroupIds:
+        - !GetAtt ApiSecurityGroup.GroupId
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-api"
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -euxo pipefail
+          dnf install -y docker
+          systemctl enable --now docker
+          docker run -d --restart=always --name portal-api -p 80:8080 \
+            -e AWS_REGION=${AWS::Region} \
+            -e USERS_TABLE=${UsersTable} \
+            -e NOTES_TABLE=${NotesTable} \
+            -e CREATE_TABLES=false \
+            -e SEED_DEMO=${SeedDemo} \
+            -e JWT_SECRET='${JwtSecret}' \
+            -e JWT_TTL_MINUTES=480 \
+            -e METRICS_MODE=sdk \
+            -e METRICS_FUNCTION_NAME=${MetricsFunction} \
+            ${ApiImage}
+
+  # ---------- Frontend ----------
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  FrontendOac:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}"
+
+  # Reescribe las rutas de react-router a /index.html. Va SOLO en el comportamiento por defecto:
+  # usar CustomErrorResponses convertiria tambien los 403/404 de /api/* en 200 con HTML.
+  SpaRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${AWS::StackName}-spa-rewrite"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rutas de react-router servidas por index.html
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          if (request.uri.indexOf('.') === -1) {
+            request.uri = '/index.html';
+          }
+          return request;
+        }
+
+  Distribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${AWS::StackName} portal"
+        DefaultRootObject: index.html
+        Origins:
+          - Id: frontend
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt FrontendOac.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+          - Id: api
+            DomainName: !GetAtt ApiInstance.PublicDnsName
+            CustomOriginConfig:
+              HTTPPort: 80
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId: frontend
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6  # CachingOptimized
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt SpaRewriteFunction.FunctionMetadata.FunctionARN
+        CacheBehaviors:
+          - PathPattern: /api/*
+            TargetOriginId: api
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad  # CachingDisabled
+            OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewerExceptHostHeader
+
+Outputs:
+  CloudFrontUrl:
+    Description: URL publica del portal
+    Value: !Sub "https://${Distribution.DomainName}"
+  FrontendBucket:
+    Description: Bucket del frontend (destino de aws s3 sync)
+    Value: !Ref FrontendBucket
+  DistributionId:
+    Description: Distribucion para create-invalidation
+    Value: !Ref Distribution
+  ApiPublicDns:
+    Description: DNS publico de la instancia con la API
+    Value: !GetAtt ApiInstance.PublicDnsName
+  MetricsFunctionName:
+    Description: Lambda que calcula las metricas
+    Value: !Ref MetricsFunction

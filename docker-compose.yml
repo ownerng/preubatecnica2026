@@ -1,0 +1,54 @@
+# Entorno local completo: DynamoDB con volumen, Lambda de métricas con RIE, API y frontend.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.2
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+    user: root              # evita problemas de permisos con el volumen
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    ports: ["8000:8000"]
+    restart: unless-stopped
+
+  metrics:                  # Lambda real (app.handler) corriendo con el Runtime Interface Emulator
+    build: ./lambda/metrics
+    environment:
+      DYNAMODB_ENDPOINT: http://dynamodb:8000
+      NOTES_TABLE: Notes
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+    ports: ["9001:8080"]
+    depends_on: [dynamodb]
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    environment:
+      DYNAMODB_ENDPOINT: http://dynamodb:8000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      USERS_TABLE: Users
+      NOTES_TABLE: Notes
+      CREATE_TABLES: "true"
+      SEED_DEMO: "true"
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-dev-only-secret-32b}
+      JWT_TTL_MINUTES: "480"
+      METRICS_MODE: http
+      METRICS_URL: http://metrics:8080/2015-03-31/functions/function/invocations
+    ports: ["8080:8080"]
+    depends_on: [dynamodb, metrics]
+    healthcheck:            # el Dockerfile de la API debe incluir curl
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/api/health"]
+      interval: 10s
+      retries: 12
+    restart: unless-stopped
+
+  web:
+    build: ./frontend       # bun build de React -> nginx: sirve dist/ y proxya /api -> api:8080
+    ports: ["3000:80"]
+    depends_on: [api]
+    restart: unless-stopped
+
+volumes:
+  dynamodb-data:

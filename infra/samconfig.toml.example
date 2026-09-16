@@ -1,0 +1,17 @@
+# Copia este archivo a infra/samconfig.toml y ajusta los valores.
+# samconfig.toml está en .gitignore: no se versiona porque lleva el secreto del JWT.
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "portal-equipo"
+region = "us-east-1"
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = false
+resolve_s3 = true
+parameter_overrides = """\
+ApiImage=ghcr.io/USUARIO/portal-api:1.0.0 \
+JwtSecret=cambia-esto-por-un-secreto-de-32-caracteres-o-mas \
+SeedDemo=true \
+InstanceType=t3.micro \
+CloudFrontPrefixListId=pl-3b927c52\
+"""

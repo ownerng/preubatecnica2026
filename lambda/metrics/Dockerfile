@@ -1,0 +1,9 @@
+# Imagen base oficial de Lambda: incluye el Runtime Interface Emulator para correr en local.
+FROM public.ecr.aws/lambda/python:3.12
+
+COPY requirements.txt ${LAMBDA_TASK_ROOT}/
+RUN pip install --no-cache-dir -r ${LAMBDA_TASK_ROOT}/requirements.txt -t ${LAMBDA_TASK_ROOT}
+
+COPY app.py ${LAMBDA_TASK_ROOT}/
+
+CMD ["app.handler"]

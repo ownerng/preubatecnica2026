@@ -1,0 +1,17 @@
+# build
+api/target/
+frontend/dist/
+frontend/node_modules/
+lambda/metrics/__pycache__/
+
+# entorno / secretos
+.env
+samconfig.toml
+.aws-sam/
+
+# SO / editores
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

@@ -11,6 +11,13 @@ const LABELS = { PENDIENTE: "Pendiente", EN_CURSO: "En curso", HECHO: "Hecho" };
 
 const clamp = (v, max) => Math.max(0, Math.min(Math.round(v), max));
 
+// Inclinación estable por nota: papel clavado a mano, no alineado a una rejilla.
+function tiltOf(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return `${((Math.abs(h) % 9) - 4) * 0.3}deg`;
+}
+
 export default function Board() {
   const [notes, setNotes] = useState([]);
   const [error, setError] = useState("");
@@ -53,12 +60,19 @@ export default function Board() {
   }
 
   return (
-    <section className="board-page">
-      <div className="toolbar">
+    <section className="page board-page">
+      <div className="board-bar">
         <button onClick={addNote}>Nueva nota</button>
-        <span className="hint">Arrastra una nota por su barra superior; la posición se guarda sola.</span>
+        <span className="hint">Arrastra una nota por su cabecera. La posición se guarda sola.</span>
         {error && <span className="error">{error}</span>}
       </div>
+
+      {!loading && notes.length === 0 && (
+        <p className="board-empty">
+          <strong>La pared está vacía</strong>
+          Crea la primera nota y arrástrala donde quieras.
+        </p>
+      )}
 
       <div className="canvas-scroll" ref={scrollRef}>
         <div className="canvas" style={{ width: CANVAS_W, height: CANVAS_H }}>
@@ -85,6 +99,7 @@ function NoteCard({ note, onSaved, onDelete, onError, bringToFront, zTop }) {
   const [pos, setPos] = useState({ x: note.x, y: note.y });
   const [z, setZ] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const drag = useRef(null);
 
   // Contenido y posición se sincronizan por separado: mover una nota NO debe descartar
@@ -104,6 +119,7 @@ function NoteCard({ note, onSaved, onDelete, onError, bringToFront, zTop }) {
     e.currentTarget.setPointerCapture(e.pointerId);
     drag.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y, moved: false };
     setZ(zTop + 1);
+    setDragging(true);
     bringToFront();
   }
 
@@ -118,6 +134,7 @@ function NoteCard({ note, onSaved, onDelete, onError, bringToFront, zTop }) {
   async function onPointerUp() {
     const state = drag.current;
     drag.current = null;
+    setDragging(false);
     if (!state?.moved || (pos.x === note.x && pos.y === note.y)) return;
     try {
       const saved = await moveNote(note.id, pos.x, pos.y);
@@ -142,8 +159,8 @@ function NoteCard({ note, onSaved, onDelete, onError, bringToFront, zTop }) {
 
   return (
     <article
-      className={`note status-${draft.status}`}
-      style={{ left: pos.x, top: pos.y, width: NOTE_W, zIndex: z }}
+      className={`note status-${draft.status}${dragging ? " dragging" : ""}`}
+      style={{ left: pos.x, top: pos.y, width: NOTE_W, zIndex: z, "--tilt": tiltOf(note.id) }}
     >
       <header
         className="note-head"
@@ -153,14 +170,16 @@ function NoteCard({ note, onSaved, onDelete, onError, bringToFront, zTop }) {
         onPointerCancel={onPointerUp}
         title="Arrastrar"
       >
-        <span>{LABELS[draft.status]}</span>
-        {dirty && <span className="dot" title="Cambios sin guardar">●</span>}
+        <span className="pin" aria-hidden="true" />
+        <span className="state">{LABELS[draft.status]}</span>
+        {dirty && <span className="unsaved">Sin guardar</span>}
       </header>
 
       <input
         className="note-title"
         value={draft.title}
         maxLength={120}
+        aria-label="Título de la nota"
         onChange={(e) => setDraft({ ...draft, title: e.target.value })}
       />
       <textarea
@@ -168,10 +187,16 @@ function NoteCard({ note, onSaved, onDelete, onError, bringToFront, zTop }) {
         value={draft.text}
         maxLength={2000}
         rows={3}
+        placeholder="Escribe aquí…"
+        aria-label="Contenido de la nota"
         onChange={(e) => setDraft({ ...draft, text: e.target.value })}
       />
       <div className="note-actions">
-        <select value={draft.status} onChange={(e) => setDraft({ ...draft, status: e.target.value })}>
+        <select
+          value={draft.status}
+          aria-label="Estado de la nota"
+          onChange={(e) => setDraft({ ...draft, status: e.target.value })}
+        >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
               {LABELS[s]}

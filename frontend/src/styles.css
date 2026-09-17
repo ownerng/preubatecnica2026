@@ -1,141 +1,619 @@
+/* ==========================================================================
+   Portal de equipo — pared de taller.
+   Superficie: yeso cálido. Cromo: tinta pizarra. El único color saturado
+   de la pantalla es el papel de las notas.
+   ========================================================================== */
+
 :root {
-  --bg: #f4f5f7;
-  --ink: #1f2430;
-  --muted: #6b7280;
-  --line: #d9dce3;
-  --accent: #2f6feb;
-  --pendiente: #fff3bf;
-  --encurso: #d7e9ff;
-  --hecho: #d8f5dd;
-  --danger: #c0392b;
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  --wall: #e3e2d9;
+  --wall-deep: #d6d5ca;
+  --paper: #fbfaf7;
+  --ink: #1b2430;
+  --ink-soft: #39424f;
+  --muted: #6e7180;
+  --rule: #cfcdc2;
+  --rule-soft: #e6e4da;
+  --accent: #14594f;
+  --accent-hi: #1d7567;
+  --danger: #9b2c2c;
+
+  /* papel de las notas */
+  --stock-pend: #f5df7c;
+  --stock-curso: #a9cce8;
+  --stock-hecho: #afd9bb;
+  /* los mismos estados en version marcador: validada para daltonismo y contraste */
+  --mark-pend: #b5811a;
+  --mark-curso: #2b62b0;
+  --mark-hecho: #1c8b52;
+
+  --sans: "Archivo", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --serif: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+  --lift: 0 1px 1px rgb(27 36 48 / 14%), 0 6px 14px -6px rgb(27 36 48 / 26%);
+  --lift-high: 0 2px 2px rgb(27 36 48 / 16%), 0 18px 32px -10px rgb(27 36 48 / 34%);
+
+  color-scheme: light;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--wall);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Las barras de scroll del sistema rompían la superficie: aquí son parte de ella. */
+* { scrollbar-width: thin; scrollbar-color: rgb(27 36 48 / 26%) transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgb(27 36 48 / 26%);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgb(27 36 48 / 45%); background-clip: padding-box; }
+
+h1, h2, h3 { margin: 0; font-weight: 400; }
+h1 {
+  font-family: var(--serif);
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+h2 { font-family: var(--sans); font-size: 0.95rem; font-weight: 600; }
+
+/* ---------- controles ---------- */
+
+button {
+  padding: 0.5rem 0.95rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  color: #f4f7f5;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+button:hover:not(:disabled) { background: var(--accent-hi); border-color: var(--accent-hi); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+button.secondary {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--rule);
+}
+button.secondary:hover:not(:disabled) { background: #fff; border-color: var(--ink-soft); }
+
+button.danger { background: var(--danger); border-color: var(--danger); }
+button.danger:hover:not(:disabled) { background: #7f2222; border-color: #7f2222; }
+
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-soft);
+  padding: 0.35rem 0.5rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+button.ghost:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
   color: var(--ink);
 }
 
-button {
-  padding: 0.45rem 0.85rem;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
-  font: inherit;
-  cursor: pointer;
-}
-button:disabled { opacity: 0.5; cursor: default; }
-button.secondary { background: #fff; color: var(--ink); border-color: var(--line); }
-button.danger { background: var(--danger); border-color: var(--danger); }
-
 input, select, textarea {
-  padding: 0.4rem 0.5rem;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
   font: inherit;
+  color: var(--ink);
   background: #fff;
   width: 100%;
 }
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--accent);
+  outline-offset: 0;
+}
 
-label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--muted); }
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+label small { font-weight: 400; color: var(--muted); }
 
-.nav {
+/* ---------- mensajes ---------- */
+
+.error, .info {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-left: 3px solid currentcolor;
+  border-radius: 0 3px 3px 0;
+  font-size: 0.87rem;
+}
+.error { color: var(--danger); background: #f7e9e7; }
+.info { color: #1c5c39; background: #e6f1e9; }
+.hint { margin: 0; color: var(--muted); font-size: 0.85rem; }
+.loading { color: var(--muted); }
+
+/* ==========================================================================
+   Shell: riel a la izquierda, trabajo a la derecha
+   ========================================================================== */
+
+.shell { display: flex; min-height: 100vh; }
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  flex: 0 0 214px;
+  padding: 1.6rem 1.25rem;
+  background: var(--ink);
+  color: #d5d8de;
+}
+
+.rail-mark { display: flex; flex-direction: column; }
+.rail-mark-name {
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  line-height: 1.05;
+  color: #fbfaf7;
+}
+.rail-mark-sub { font-size: 0.78rem; color: #878e9b; }
+
+.rail-nav { display: flex; flex-direction: column; gap: 0.15rem; }
+.rail-nav a {
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  color: #b9bec8;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 120ms ease, color 120ms ease;
+}
+.rail-nav a:hover { background: rgb(255 255 255 / 7%); color: #fbfaf7; }
+.rail-nav a.active { background: var(--paper); color: var(--ink); }
+
+.rail-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+}
+.rail-user-name { color: #fbfaf7; font-weight: 500; }
+.rail-user-role { font-size: 0.8rem; color: #878e9b; margin-bottom: 0.35rem; }
+.rail .ghost { color: #b9bec8; padding-left: 0; }
+.rail .ghost:hover:not(:disabled) { color: #fbfaf7; }
+
+.shell > main { flex: 1; min-width: 0; padding: 2rem 2.25rem; }
+
+.page { display: flex; flex-direction: column; gap: 1.5rem; max-width: 880px; }
+.page-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.page-lead { margin: 0.35rem 0 0; color: var(--muted); max-width: 58ch; }
+
+.panel {
+  background: var(--paper);
+  border: 1px solid var(--rule-soft);
+  border-radius: 6px;
+  padding: 1.4rem 1.5rem;
+}
+
+/* ==========================================================================
+   Entrar: el formulario sobre la pared, con notas ya clavadas detras
+   ========================================================================== */
+
+.login {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 2rem 1.25rem;
+  overflow: hidden;
+}
+
+.login-notes { position: absolute; inset: 0; pointer-events: none; }
+.login-notes span {
+  position: absolute;
+  width: 168px;
+  padding: 1.3rem 0.9rem 0.9rem;
+  border-radius: 2px;
+  font-size: 0.86rem;
+  color: #46403a;
+  box-shadow: var(--lift);
+  animation: settle 620ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.login-notes span::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  translate: -50% 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgb(27 36 48 / 42%);
+  box-shadow: inset 0 -1px 1px rgb(255 255 255 / 45%);
+}
+.login-notes .n1 { top: 19%; left: 19%; background: var(--stock-pend); rotate: -4deg; animation-delay: 60ms; }
+.login-notes .n2 { top: 58%; left: 25%; background: var(--stock-curso); rotate: 3deg; animation-delay: 160ms; }
+.login-notes .n3 { top: 23%; right: 20%; background: var(--stock-hecho); rotate: 5deg; animation-delay: 260ms; }
+.login-notes .n4 { bottom: 19%; right: 24%; background: var(--stock-pend); rotate: -2deg; animation-delay: 360ms; }
+
+@keyframes settle {
+  from { opacity: 0; transform: translateY(14px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+.login-form {
+  position: relative;
+  z-index: 1;
+  width: min(370px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 2rem 1.9rem 1.9rem;
+  background: var(--paper);
+  border: 1px solid var(--rule-soft);
+  border-radius: 6px;
+  box-shadow: var(--lift-high);
+}
+.login-form h1 { font-size: 2.2rem; }
+.login-lead { margin: -0.5rem 0 0.4rem; color: var(--muted); font-size: 0.9rem; }
+.login-form button[type="submit"] { margin-top: 0.4rem; padding: 0.6rem; }
+
+/* ==========================================================================
+   Tablero
+   ========================================================================== */
+
+.board-page {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 4rem);
+  max-width: none;
+}
+
+/* La barra va fuera del lienzo: flotando encima tapaba las notas que caían debajo. */
+.board-bar {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.7rem 1.2rem;
-  background: #fff;
-  border-bottom: 1px solid var(--line);
-}
-.nav .brand { font-weight: 700; }
-.nav nav { display: flex; gap: 0.9rem; }
-.nav a { color: var(--ink); text-decoration: none; }
-.nav a:hover { color: var(--accent); }
-.nav .spacer { flex: 1; }
-.nav .who { color: var(--muted); font-size: 0.85rem; }
-
-main { padding: 1rem 1.2rem; }
-.page { display: flex; flex-direction: column; gap: 1rem; }
-h1 { font-size: 1.25rem; margin: 0; }
-h2 { font-size: 1rem; margin: 0 0 0.6rem; }
-
-.card {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 1rem;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
 }
 
-.error { color: var(--danger); margin: 0; }
-.info { color: #1e7a41; margin: 0; }
-.hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
-.loading { color: var(--muted); padding: 1rem; }
+.canvas-scroll {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--wall-deep);
+  box-shadow: inset 0 1px 6px rgb(27 36 48 / 10%);
+  scrollbar-width: thin;
+  scrollbar-color: rgb(27 36 48 / 30%) transparent;
+}
+.canvas {
+  position: relative;
+  background-image: radial-gradient(rgb(27 36 48 / 11%) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
 
-/* login */
-.login-wrap { display: flex; justify-content: center; padding-top: 8vh; }
-.login { width: min(360px, 92vw); display: flex; flex-direction: column; gap: 0.8rem; }
+.board-empty {
+  position: absolute;
+  z-index: 4;
+  top: 45%;
+  left: 50%;
+  translate: -50% -50%;
+  width: min(30ch, 80%);
+  text-align: center;
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+.board-empty strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 1.5rem;
+  font-weight: 400;
+}
 
-/* admin */
-.user-form .row { display: flex; gap: 0.8rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 0.8rem; }
-.user-form .row > label { flex: 1 1 180px; }
-table.users { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
-table.users th, table.users td { text-align: left; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
-table.users tr.inactive { color: var(--muted); background: #fafafa; }
-table.users td.actions { display: flex; gap: 0.5rem; }
-
-/* dashboard */
-.cards { display: flex; gap: 1rem; flex-wrap: wrap; }
-.metric { min-width: 170px; display: flex; flex-direction: column; gap: 0.3rem; }
-.metric-label { color: var(--muted); font-size: 0.85rem; }
-.metric-value { font-size: 2rem; }
-
-/* tablero */
-.board-page { display: flex; flex-direction: column; gap: 0.8rem; height: calc(100vh - 8rem); }
-.toolbar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
-.canvas-scroll { flex: 1; overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-.canvas { position: relative; background-image: radial-gradient(#e3e5ea 1px, transparent 1px); background-size: 24px 24px; }
+/* --- la nota --- */
 
 .note {
   position: absolute;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  padding: 0 0.6rem 0.6rem;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgb(0 0 0 / 12%);
+  gap: 0.4rem;
+  padding: 0 0.7rem 0.7rem;
+  border-radius: 2px;
+  box-shadow: var(--lift);
+  rotate: var(--tilt, 0deg);
+  transition: box-shadow 140ms ease, rotate 140ms ease;
 }
-.note.status-PENDIENTE { background: var(--pendiente); }
-.note.status-EN_CURSO { background: var(--encurso); }
-.note.status-HECHO { background: var(--hecho); }
+.note.status-PENDIENTE { background: var(--stock-pend); }
+.note.status-EN_CURSO { background: var(--stock-curso); }
+.note.status-HECHO { background: var(--stock-hecho); }
+
+.note.dragging { rotate: 0deg; box-shadow: var(--lift-high); }
+
+/* Se escribe sobre el papel: los campos no dibujan caja hasta que reciben el foco. */
+.note .note-title, .note .note-text {
+  padding: 0.15rem 0.2rem;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 2px;
+  color: #2b2620;
+}
+.note .note-title:hover, .note .note-text:hover { background: rgb(255 255 255 / 35%); }
+.note .note-title:focus-visible, .note .note-text:focus-visible {
+  background: rgb(255 255 255 / 75%);
+  border-color: rgb(27 36 48 / 35%);
+}
+.note select {
+  padding: 0.3rem 0.35rem;
+  background: rgb(255 255 255 / 55%);
+  border-color: rgb(27 36 48 / 18%);
+  color: #2b2620;
+  font-size: 0.82rem;
+}
 
 .note-head {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin: 0 -0.6rem 0.2rem;
-  padding: 0.35rem 0.6rem;
-  border-radius: 8px 8px 0 0;
-  background: rgb(0 0 0 / 7%);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  gap: 0.5rem;
+  margin: 0 -0.7rem 0.25rem;
+  padding: 0.55rem 0.7rem 0.4rem;
+  background: rgb(0 0 0 / 6%);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #3c352c;
   cursor: grab;
   touch-action: none;
   user-select: none;
 }
 .note-head:active { cursor: grabbing; }
-.note-head .dot { color: var(--danger); }
-.note-title { font-weight: 600; }
-.note-text { resize: vertical; }
-.note-actions { display: flex; gap: 0.4rem; align-items: center; }
-.note-actions select { flex: 1; }
-.note-actions button { padding: 0.35rem 0.55rem; font-size: 0.8rem; }
+.note-head .pin {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgb(27 36 48 / 45%);
+  box-shadow: inset 0 -1px 1px rgb(255 255 255 / 45%);
+  flex: 0 0 auto;
+}
+.note-head .state { flex: 1; }
+.note-head .unsaved { font-weight: 500; font-size: 0.72rem; color: var(--danger); }
 
-.card.metric.status-PENDIENTE { border-left: 5px solid #e0c200; }
-.card.metric.status-EN_CURSO { border-left: 5px solid var(--accent); }
-.card.metric.status-HECHO { border-left: 5px solid #2f9e52; }
+.note-title { font-weight: 600; font-size: 1rem; }
+.note-text { resize: vertical; line-height: 1.45; }
+
+/* Una sola acción con peso: guardar. Eliminar no compite por la atención. */
+.note-actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.15rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgb(27 36 48 / 12%);
+}
+.note-actions select { flex: 1; min-width: 0; }
+.note-actions button { padding: 0.3rem 0.55rem; font-size: 0.8rem; }
+/* Guardar solo se enciende cuando hay algo que guardar */
+.note-actions button:disabled {
+  opacity: 1;
+  background: transparent;
+  border-color: rgb(27 36 48 / 15%);
+  color: #6d665c;
+}
+.note-actions .danger {
+  background: transparent;
+  border-color: transparent;
+  color: #7d3a35;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  padding-inline: 0.3rem;
+}
+.note-actions .danger:hover:not(:disabled) {
+  background: transparent;
+  border-color: transparent;
+  color: var(--danger);
+}
+
+/* ==========================================================================
+   Dashboard: una cifra, y como se reparte
+   ========================================================================== */
+
+.dist { display: flex; flex-direction: column; gap: 1.8rem; }
+
+.dist-total { display: flex; align-items: baseline; gap: 0.75rem; margin: 0; }
+.dist-total strong {
+  font-family: var(--serif);
+  font-size: 4.5rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.dist-total span { color: var(--ink-soft); font-size: 1.05rem; }
+
+/* Una barra por estado contra la misma escala: se comparan entre si de un vistazo. */
+.dist-rows { list-style: none; margin: 0; padding: 0; }
+.dist-rows li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 0.6rem 1.2rem;
+  padding: 1.1rem 0;
+  border-top: 1px solid var(--rule-soft);
+}
+.dist-rows li:first-child { border-top: 0; padding-top: 0; }
+.dist-rows .label { font-size: 1.05rem; font-weight: 500; }
+.dist-rows .count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.dist-rows .share {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 4ch;
+  text-align: right;
+}
+.dist-rows .track {
+  grid-column: 1 / -1;
+  height: 14px;
+  background: rgb(27 36 48 / 8%);
+  border-radius: 4px;
+}
+.dist-rows .fill { height: 100%; border-radius: 4px; min-width: 3px; }
+.fill-PENDIENTE { background: var(--mark-pend); }
+.fill-EN_CURSO { background: var(--mark-curso); }
+.fill-HECHO { background: var(--mark-hecho); }
+
+.dist-empty { margin: 0; color: var(--muted); }
+.source-note { margin: 0; color: var(--muted); font-size: 0.82rem; }
+.source-note code { font-family: inherit; color: var(--ink-soft); font-weight: 600; }
+
+/* ==========================================================================
+   Administracion: libro de registro
+   ========================================================================== */
+
+.user-form { display: flex; flex-direction: column; gap: 1rem; }
+.user-form .row { display: flex; gap: 0.9rem; flex-wrap: wrap; align-items: flex-end; }
+.user-form .row > label { flex: 1 1 170px; }
+/* input y select miden distinto por defecto: los igualo para que la fila cuadre */
+.user-form input, .user-form select { height: 38px; }
+
+table.users {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  table-layout: fixed;
+}
+/* Anchos fijos: sin esto Rol y Estado se comían el espacio y las acciones quedaban lejísimos */
+table.users col.c-rol, table.users col.c-estado { width: 130px; }
+table.users col.c-acciones { width: 210px; }
+table.users th {
+  text-align: left;
+  padding: 0 0.7rem 0.5rem;
+  border-bottom: 1px solid var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+table.users td {
+  padding: 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+table.users tr.inactive td { color: var(--muted); }
+table.users .name { font-weight: 600; }
+table.users tr.inactive .name { font-weight: 500; }
+/* Los dos botones de fila son el mismo objeto: mismo fondo, mismo borde, mismo ancho.
+   Desactivar solo cambia el color del texto, y se rellena al pasar por encima. */
+table.users td.actions { display: flex; gap: 0.4rem; justify-content: flex-end; }
+table.users td.actions button {
+  flex: 0 0 auto;
+  min-width: 95px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.82rem;
+  background: var(--paper);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+table.users td.actions button:hover:not(:disabled) { background: #fff; border-color: var(--ink-soft); }
+table.users td.actions .danger { color: var(--danger); }
+table.users td.actions .danger:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fbfaf7;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--paper);
+}
+.tag.admin { border-color: var(--accent); color: var(--accent); }
+.tag.off { border-color: var(--danger); color: var(--danger); background: transparent; }
+
+/* ==========================================================================
+   Pantallas estrechas
+   ========================================================================== */
+
+@media (max-width: 860px) {
+  .shell { flex-direction: column; }
+  .rail {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.7rem 1rem;
+    flex-wrap: wrap;
+  }
+  .rail-mark-sub { display: none; }
+  .rail-mark-name { font-size: 1.25rem; }
+  .rail-nav { flex-direction: row; gap: 0.25rem; }
+  .rail-user {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 0 auto;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .rail-user-role { display: none; }
+  .shell > main { padding: 1.1rem; }
+  .board-page { height: calc(100vh - 8rem); }
+  .dist-total strong { font-size: 3.2rem; }
+  table.users td.actions { justify-content: flex-start; }
+}
+
+@media (max-width: 560px) {
+  .login-notes { display: none; }
+  .board-bar .hint { display: none; }
+  table.users thead { display: none; }
+  /* en bloques ya no hay columnas: los anchos fijos partían los nombres en dos líneas */
+  table.users { table-layout: auto; }
+  table.users col { width: auto; }
+  table.users tr { display: block; padding: 0.8rem 0; border-bottom: 1px solid var(--rule); }
+  table.users td { display: block; padding: 0.1rem 0; border: 0; }
+  table.users td.actions { padding-top: 0.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

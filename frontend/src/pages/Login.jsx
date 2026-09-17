@@ -29,18 +29,43 @@ export default function Login({ onLogin, user }) {
   }
 
   return (
-    <div className="login-wrap">
-      <form className="card login" onSubmit={submit}>
+    <div className="login">
+      {/* el producto como telón de fondo: notas ya clavadas en la pared */}
+      <div className="login-notes" aria-hidden="true">
+        <span className="n1">Revisar el contrato de la API</span>
+        <span className="n2">Migrar la tabla de notas</span>
+        <span className="n3">Demo del viernes</span>
+        <span className="n4">Pedir accesos a Ana</span>
+      </div>
+
+      <form className="login-form" onSubmit={submit}>
         <h1>Portal de equipo</h1>
+        <p className="login-lead">Entra para ver el tablero y mover tus notas.</p>
+
         <label>
           Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+            autoComplete="username"
+          />
         </label>
         <label>
           Contraseña
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+          />
         </label>
+
         {error && <p className="error">{error}</p>}
+
         <button type="submit" disabled={busy}>
           {busy ? "Entrando…" : "Entrar"}
         </button>
